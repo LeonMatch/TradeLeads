@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Leads Automated Trading Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-text">TL</span>
+                <span class="strategy-text">Channel Strategy</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-button">Log Out</a>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="chart-placeholder" id="chart"></div>
+    </main>
+
+    <script>
+        // Set initial dimensions
+        const chartContainer = document.getElementById('chart');
+        
+        // Initialize chart with advanced configuration
+        const chart = LightweightCharts.createChart(chartContainer, {
+            width: chartContainer.clientWidth,
+            height: chartContainer.clientHeight,
+            layout: {
+                background: { type: 'solid', color: '#131722' },
+                textColor: '#d1d4dc',
+                fontSize: 12,
+                fontFamily: 'Trebuchet MS',
+            },
+            grid: {
+                vertLines: { color: '#2a2e39' },
+                horzLines: { color: '#2a2e39' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                vertLine: {
+                    width: 1,
+                    color: '#2a2e39',
+                    style: LightweightCharts.LineStyle.Dashed,
+                },
+                horzLine: {
+                    width: 1,
+                    color: '#2a2e39',
+                    style: LightweightCharts.LineStyle.Dashed,
+                },
+            },
+            rightPriceScale: {
+                borderColor: '#2a2e39',
+                visible: true,
+                borderVisible: true,
+                scaleMargins: {
+                    top: 0.2,
+                    bottom: 0.2,
+                },
+                autoScale: true,
+                mode: LightweightCharts.PriceScaleMode.Normal,
+            },
+            timeScale: {
+                borderColor: '#2a2e39',
+                timeVisible: true,
+                secondsVisible: false,
+                borderVisible: true,
+                tickMarkFormatter: (time) => {
+                    const date = new Date(time * 1000);
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                    });
+                },
+            },
+            localization: {
+                locale: 'en-US',
+                priceFormatter: price => 
+                    new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 2,
+                    }).format(price),
+            },
+        });
+
+        // Create candlestick series
+        const candlestickSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+            priceFormat: {
+                type: 'price',
+                precision: 2,
+                minMove: 0.01,
+            },
+        });
+
+        // Handle window resize
+        const resizeObserver = new ResizeObserver(entries => {
+            if (entries.length === 0 || entries[0].target !== chartContainer) { return; }
+            const newRect = entries[0].contentRect;
+            chart.applyOptions({
+                width: newRect.width,
+                height: newRect.height
+            });
+        });
+        
+        resizeObserver.observe(chartContainer);
+
+        // Create top bar container
+        const topBar = document.createElement('div');
+        topBar.style.position = 'absolute';
+        topBar.style.left = '12px';
+        topBar.style.top = '12px';
+        topBar.style.right = '12px';
+        topBar.style.zIndex = '1';
+        topBar.style.display = 'flex';
+        topBar.style.alignItems = 'center';
+        topBar.style.gap = '24px';
+        chartContainer.style.position = 'relative';
+        chartContainer.appendChild(topBar);
+
+        // Symbol and price container
+        const symbolPriceContainer = document.createElement('div');
+        symbolPriceContainer.style.display = 'flex';
+        symbolPriceContainer.style.flexDirection = 'column';
+        symbolPriceContainer.style.gap = '4px';
+        topBar.appendChild(symbolPriceContainer);
+
+        const symbolElement = document.createElement('div');
+        symbolElement.style.fontSize = '16px';
+        symbolElement.style.fontWeight = 'bold';
+        symbolElement.style.color = '#d1d4dc';
+        symbolElement.textContent = 'BTCUSDT';
+        symbolPriceContainer.appendChild(symbolElement);
+
+        const priceElement = document.createElement('div');
+        priceElement.style.fontSize = '14px';
+        priceElement.style.color = '#787b86';
+        symbolPriceContainer.appendChild(priceElement);
+
+        // Create timeframe controls
+        const controls = document.createElement('div');
+        controls.style.display = 'flex';
+        controls.style.gap = '4px';
+        topBar.appendChild(controls);
+
+        const timeframes = [
+            { label: '1H', value: '1h' },
+            { label: '4H', value: '4h' },
+            { label: '1D', value: '1d' },
+            { label: '1W', value: '1w' }
+        ];
+
+        let activeTimeframe = '1h';
+
+        timeframes.forEach(tf => {
+            const button = document.createElement('button');
+            button.textContent = tf.label;
+            button.className = 'timeframe-button';
+            
+            if (tf.value === activeTimeframe) {
+                button.classList.add('active');
+            }
+
+            button.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    console.log(`Changing timeframe to ${tf.value}`);
+                    controls.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    button.classList.add('active');
+                    activeTimeframe = tf.value;
+                    clearInterval(updateInterval);
+                    await fetchKlines(tf.value, true);
+                    updateInterval = setInterval(() => {
+                        fetchKlines(activeTimeframe);
+                    }, 2000);
+                    console.log(`Timeframe changed to ${tf.value}`);
+                } catch (error) {
+                    console.error('Error changing timeframe:', error);
+                }
+            });
+
+            controls.appendChild(button);
+        });
+
+        const priceFormatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        // Track latest bar data
+        let lastBar = null;
+
+        // Fetch and update candlestick data
+        async function fetchKlines(interval = '1h', isInitial = false) {
+            try {
+                const response = await fetch(`/get_klines?interval=${interval}`);
+                const data = await response.json();
+                
+                // Log data for debugging
+                console.log('Received data:', data);
+                
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    return;
+                }
+
+                if (data.length === 0) {
+                    console.log('No data received');
+                    return;
+                }
+
+                const currentBar = data[data.length - 1];
+                console.log('Current data:', currentBar);
+
+                if (isInitial) {
+                    console.log('Setting initial data');
+                    candlestickSeries.setData(data);
+                    lastBar = currentBar;
+                } else {
+                    // Update only if we have new data
+                    if (!lastBar || currentBar.time > lastBar.time) {
+                        candlestickSeries.update(currentBar);
+                        lastBar = currentBar;
+                    }
+                    // Update price even if time hasn't changed but price has
+                    else if (currentBar.close !== lastBar.close) {
+                        candlestickSeries.update(currentBar);
+                        lastBar = currentBar;
+                    }
+                }
+
+                // Update price display
+                priceElement.textContent = priceFormatter.format(currentBar.close);
+                priceElement.style.color = currentBar.close >= currentBar.open ? '#26a69a' : '#ef5350';
+            } catch (error) {
+                console.error('Error fetching klines:', error);
+            }
+        }
+
+        // Initial data fetch
+        fetchKlines('1h', true);
+
+        // Subscribe to crosshair move
+        chart.subscribeCrosshairMove(param => {
+            if (!param?.seriesData?.size) {
+                // When crosshair is out of chart, show latest price
+                if (lastBar) {
+                    priceElement.textContent = priceFormatter.format(lastBar.close);
+                    priceElement.style.color = lastBar.close >= lastBar.open ? '#26a69a' : '#ef5350';
+                }
+            } else {
+                const data = param.seriesData.get(candlestickSeries);
+                if (data) {
+                    priceElement.textContent = priceFormatter.format(data.close);
+                    priceElement.style.color = data.close >= data.open ? '#26a69a' : '#ef5350';
+                }
+            }
+        });
+
+        // Update data every 2 seconds
+        const updateInterval = setInterval(() => {
+            fetchKlines(activeTimeframe);
+        }, 2000);
+
+        // Cleanup interval on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(updateInterval);
+        });
+    </script>
+
+    <footer class="footer">
+        <div class="timeline-controls"></div>
+    </footer>
+</body>
+</html>

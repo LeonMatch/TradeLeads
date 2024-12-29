@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Leads Automated Trading Platform - Sign In</title>
+    <meta name="description" content="Automated Bots Crypto Trading Platform.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="logo-container">
+            <div class="logo">
+                <div class="logo-text">TradeLeads</div>
+                <div class="subtitle">Automated Trading Platform</div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="menu-toggle">
+                <span class="hamburger"></span>
+            </div>
+            <div class="nav-menu">
+                <a href="/" class="sign-in active">Sign in</a>
+                <a href="#" class="sign-up">Sign up</a>
+                <div class="language-selector">
+                    <span title="More languages coming soon">EN</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="login-container">
+        <div class="login-box">
+            <h1>Sign in</h1>
+            <form id="loginForm" action="{{ url_for('login') }}" method="POST">
+                <div class="form-group">
+                    <input type="text" id="email" name="email" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" name="password" placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <a href="#" class="forgot-password">Forgot password</a>
+                </div>
+                <div class="form-group recaptcha-container">
+                    <div class="g-recaptcha" data-sitekey="" data-size="normal"></div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="sign-in-button">SIGN IN</button>
+                </div>
+                {% if error %}
+                <div class="error-message">{{ error }}</div>
+                {% endif %}
+            </form>
+        </div>
+    </main>
+    <footer class="footer">
+        <div class="timeline-controls"></div>
+    </footer>
+
+    <!-- Sign Up Modal -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" style="display:none">&times;</span>
+            <p>The platform is in beta. Please send us your email address to admin@tradeleads.ai and we will add you to our waiting list.</p>
+            <button class="modal-button">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" style="display:none">&times;</span>
+            <p>Please email admin@tradeleads.ai the request to reset your password.</p>
+            <button class="modal-button">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // Hamburger menu functionality
+        document.querySelector('.menu-toggle').addEventListener('click', function() {
+            this.classList.toggle('active');
+            document.querySelector('.nav-menu').classList.toggle('active');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const menu = document.querySelector('.nav-menu');
+            const toggle = document.querySelector('.menu-toggle');
+            if (!menu.contains(e.target) && !toggle.contains(e.target) && menu.classList.contains('active')) {
+                menu.classList.remove('active');
+                toggle.classList.remove('active');
+            }
+        });
+
+        // Modal functionality
+        function setupModal(triggerSelector, modalId) {
+            const trigger = document.querySelector(triggerSelector);
+            const modal = document.getElementById(modalId);
+            const closeBtn = modal.querySelector('.close-modal');
+            const cancelBtn = modal.querySelector('.modal-button');
+
+            trigger.addEventListener('click', (e) => {
+                e.preventDefault();
+                modal.style.display = 'flex';
+            });
+
+            function closeModal() {
+                modal.style.display = 'none';
+            }
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        // Setup both modals
+        setupModal('.sign-up', 'signupModal');
+        setupModal('.forgot-password', 'forgotModal');
+    </script>
+</body>
+</html>
