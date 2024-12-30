@@ -9,8 +9,8 @@ app.secret_key = 'your-secret-key-here'  # Change this to a secure secret key in
 
 # Demo user credentials
 DEMO_USER = {
-    'email': 'Demo',
-    'password': 'Test2024'
+    'email': '',
+    'password': ''
 }
 
 def login_required(f):
